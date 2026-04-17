@@ -16,9 +16,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.logicsupplies.business",
       "infoPlist": {
-        "NSCameraUsageDescription": "Scanner les codes QR des clients"
+        "NSCameraUsageDescription": "Scanner les codes QR des clients",
+        "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "20"
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "buildNumber": "21"
     },
     "android": {
       "adaptiveIcon": {
