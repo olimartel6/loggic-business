@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { updateBusinessSettings, signOut, getStaffMembers } from '../services/supabase';
 import { supabase } from '../services/supabase';
 
@@ -20,6 +22,7 @@ export default function SettingsScreen({ route, navigation }: any) {
   const [editingRewardIndex, setEditingRewardIndex] = useState<number | null>(null);
   const [rewardName, setRewardName] = useState('');
   const [rewardPoints, setRewardPoints] = useState('');
+  const [rewardImage, setRewardImage] = useState('');
 
   const [staff, setStaff] = useState<any[]>([]);
   const [showStaffModal, setShowStaffModal] = useState(false);
@@ -49,10 +52,25 @@ export default function SettingsScreen({ route, navigation }: any) {
     }
   };
 
+  const pickImage = async (): Promise<string> => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5, allowsEditing: true, aspect: [1, 1] });
+    if (result.canceled) return '';
+    const uri = result.assets[0].uri;
+    const ext = uri.split('.').pop() || 'jpg';
+    const fileName = `reward-images/${Date.now()}.${ext}`;
+    const formData = new FormData();
+    formData.append('file', { uri, name: fileName, type: `image/${ext}` } as any);
+    const { error } = await supabase.storage.from('loyalty').upload(fileName, formData, { upsert: true });
+    if (error) { Alert.alert('Erreur upload', error.message); return ''; }
+    const { data } = supabase.storage.from('loyalty').getPublicUrl(fileName);
+    return data.publicUrl;
+  };
+
   const openAddReward = () => {
     setEditingRewardIndex(null);
     setRewardName('');
     setRewardPoints('');
+    setRewardImage('');
     setShowRewardModal(true);
   };
 
@@ -61,6 +79,7 @@ export default function SettingsScreen({ route, navigation }: any) {
     setEditingRewardIndex(index);
     setRewardName(r.name || '');
     setRewardPoints(String(r.points_required || ''));
+    setRewardImage(r.image_url || '');
     setShowRewardModal(true);
   };
 
@@ -69,7 +88,8 @@ export default function SettingsScreen({ route, navigation }: any) {
       Alert.alert('Erreur', 'Nom et points requis');
       return;
     }
-    const newReward = { name: rewardName.trim(), points_required: parseInt(rewardPoints) };
+    const newReward: any = { name: rewardName.trim(), points_required: parseInt(rewardPoints) };
+    if (rewardImage) newReward.image_url = rewardImage;
     let updated: any[];
     if (editingRewardIndex !== null) {
       updated = [...rewards];
@@ -195,7 +215,11 @@ export default function SettingsScreen({ route, navigation }: any) {
         {rewards.map((r: any, i: number) => (
           <View key={i} style={styles.rewardRow}>
             <TouchableOpacity style={styles.rewardContent} onPress={() => openEditReward(i)}>
-              <Ionicons name="gift" size={18} color="#f59e0b" />
+              {r.image_url ? (
+                <Image source={{ uri: r.image_url }} style={styles.rewardImg} />
+              ) : (
+                <Ionicons name="gift" size={18} color="#f59e0b" />
+              )}
               <Text style={styles.rewardName}>{r.name}</Text>
               <Text style={styles.rewardPts}>{r.points_required} pts</Text>
             </TouchableOpacity>
@@ -324,6 +348,24 @@ export default function SettingsScreen({ route, navigation }: any) {
               keyboardType="number-pad"
             />
 
+            <Text style={styles.label}>Photo (optionnel)</Text>
+            <TouchableOpacity
+              style={styles.photoPickerBtn}
+              onPress={async () => {
+                const url = await pickImage();
+                if (url) setRewardImage(url);
+              }}
+            >
+              {rewardImage ? (
+                <Image source={{ uri: rewardImage }} style={styles.photoPreview} />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="image-outline" size={24} color="#666" />
+                  <Text style={styles.photoPlaceholderText}>Choisir une photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.modalSaveBtn} onPress={handleSaveReward}>
               <Text style={styles.modalSaveBtnText}>
                 {editingRewardIndex !== null ? 'Modifier' : 'Ajouter'}
@@ -377,6 +419,11 @@ const styles = StyleSheet.create({
   modalSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   modalCancelBtn: { padding: 16, alignItems: 'center' },
   modalCancelBtnText: { color: '#888', fontSize: 15 },
+  rewardImg: { width: 28, height: 28, borderRadius: 6 },
+  photoPickerBtn: { marginTop: 4 },
+  photoPreview: { width: 80, height: 80, borderRadius: 12 },
+  photoPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0f0f1a', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#2a2a4a' },
+  photoPlaceholderText: { color: '#666', fontSize: 14 },
   roleBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: '#0f0f1a', alignItems: 'center', borderWidth: 1, borderColor: '#2a2a4a' },
   roleBtnActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
   roleBtnText: { color: '#888', fontWeight: '600', fontSize: 14 },

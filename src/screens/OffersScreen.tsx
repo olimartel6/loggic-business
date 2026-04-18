@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { getOffers, createOffer, updateBusinessSettings } from '../services/supabase';
 import { supabase } from '../services/supabase';
 
@@ -18,6 +20,21 @@ export default function OffersScreen({ route }: any) {
   const [description, setDescription] = useState('');
   const [maxClaims, setMaxClaims] = useState('');
   const [creating, setCreating] = useState(false);
+  const [offerImage, setOfferImage] = useState('');
+
+  const pickOfferImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.5, allowsEditing: true });
+    if (result.canceled) return;
+    const uri = result.assets[0].uri;
+    const ext = uri.split('.').pop() || 'jpg';
+    const fileName = `offer-images/${Date.now()}.${ext}`;
+    const formData = new FormData();
+    formData.append('file', { uri, name: fileName, type: `image/${ext}` } as any);
+    const { error } = await supabase.storage.from('loyalty').upload(fileName, formData, { upsert: true });
+    if (error) { Alert.alert('Erreur', error.message); return; }
+    const { data } = supabase.storage.from('loyalty').getPublicUrl(fileName);
+    setOfferImage(data.publicUrl);
+  };
 
   const loadOffers = async () => {
     try {
@@ -47,11 +64,13 @@ export default function OffersScreen({ route }: any) {
         description: description.trim(),
         valid_until: validUntil.toISOString(),
         max_claims: maxClaims ? parseInt(maxClaims) : undefined,
-      });
+        image_url: offerImage || undefined,
+      } as any);
       setShowModal(false);
       setTitle('');
       setDescription('');
       setMaxClaims('');
+      setOfferImage('');
       loadOffers();
     } catch (err: any) {
       Alert.alert('Erreur', err.message);
@@ -84,6 +103,7 @@ export default function OffersScreen({ route }: any) {
             <Ionicons name={item.active ? 'toggle' : 'toggle-outline'} size={28} color={item.active ? '#10b981' : '#666'} />
           </TouchableOpacity>
         </View>
+        {item.image_url && <Image source={{ uri: item.image_url }} style={styles.offerImage} />}
         {item.description && <Text style={styles.offerDesc}>{item.description}</Text>}
         <View style={styles.offerMeta}>
           <Text style={styles.offerMetaText}>
@@ -157,6 +177,18 @@ export default function OffersScreen({ route }: any) {
               keyboardType="number-pad"
             />
 
+            <Text style={styles.label}>Photo (optionnel)</Text>
+            <TouchableOpacity style={styles.photoBtn} onPress={pickOfferImage}>
+              {offerImage ? (
+                <Image source={{ uri: offerImage }} style={styles.photoPreview} />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="image-outline" size={24} color="#666" />
+                  <Text style={styles.photoText}>Choisir une photo</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.createBtn, creating && { opacity: 0.6 }]}
               onPress={handleCreate}
@@ -206,4 +238,9 @@ const styles = StyleSheet.create({
   createBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   cancelBtn: { padding: 16, alignItems: 'center' },
   cancelBtnText: { color: '#888', fontSize: 15 },
+  offerImage: { width: '100%', height: 120, borderRadius: 10, marginTop: 8 },
+  photoBtn: { marginTop: 4 },
+  photoPreview: { width: 80, height: 80, borderRadius: 12 },
+  photoPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#0f0f1a', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#2a2a4a' },
+  photoText: { color: '#666', fontSize: 14 },
 });
