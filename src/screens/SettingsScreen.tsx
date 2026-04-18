@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, Alert, ActivityIndicator, Modal,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { updateBusinessSettings, signOut } from '../services/supabase';
+import { updateBusinessSettings, signOut, getStaffMembers } from '../services/supabase';
+import { supabase } from '../services/supabase';
 
 export default function SettingsScreen({ route, navigation }: any) {
   const { business, onSignOut } = route.params;
@@ -19,7 +21,17 @@ export default function SettingsScreen({ route, navigation }: any) {
   const [rewardName, setRewardName] = useState('');
   const [rewardPoints, setRewardPoints] = useState('');
 
+  const [staff, setStaff] = useState<any[]>([]);
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffRole, setStaffRole] = useState('staff');
+  const [addingStaff, setAddingStaff] = useState(false);
+
   const tiers = business.tiers || [];
+
+  useFocusEffect(useCallback(() => {
+    getStaffMembers(business.id).then(setStaff).catch(console.error);
+  }, []));
 
   const handleSave = async () => {
     setSaving(true);
@@ -212,6 +224,77 @@ export default function SettingsScreen({ route, navigation }: any) {
         </View>
       )}
 
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Employes</Text>
+          <TouchableOpacity style={styles.addBtn} onPress={() => setShowStaffModal(true)}>
+            <Ionicons name="add-circle" size={24} color="#4f46e5" />
+          </TouchableOpacity>
+        </View>
+        {staff.map((s, i) => (
+          <View key={i} style={styles.rewardRow}>
+            <Ionicons name="person" size={18} color="#4f46e5" />
+            <Text style={styles.rewardName}>{s.user_id?.substring(0, 8)}...</Text>
+            <Text style={[styles.rewardPts, { color: s.role === 'owner' ? '#f59e0b' : '#4f46e5' }]}>{s.role}</Text>
+          </View>
+        ))}
+        {staff.length === 0 && <Text style={styles.emptyText}>Aucun employe</Text>}
+      </View>
+
+      <Modal visible={showStaffModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Ajouter un employe</Text>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={staffEmail}
+              onChangeText={setStaffEmail}
+              placeholder="employe@email.com"
+              placeholderTextColor="#666"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Text style={styles.label}>Role</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              {['staff', 'manager'].map(r => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.roleBtn, staffRole === r && styles.roleBtnActive]}
+                  onPress={() => setStaffRole(r)}
+                >
+                  <Text style={[styles.roleBtnText, staffRole === r && { color: '#fff' }]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, addingStaff && { opacity: 0.6 }]}
+              onPress={async () => {
+                if (!staffEmail.trim()) { Alert.alert('Erreur', 'Email requis'); return; }
+                setAddingStaff(true);
+                try {
+                  const { data, error } = await supabase.auth.signUp({ email: staffEmail.trim(), password: 'Staff' + Math.random().toString(36).slice(2, 8) + '!' });
+                  if (error) throw error;
+                  if (data.user) {
+                    await supabase.from('business_admins').insert({ user_id: data.user.id, business_id: business.id, role: staffRole });
+                  }
+                  setShowStaffModal(false);
+                  setStaffEmail('');
+                  getStaffMembers(business.id).then(setStaff);
+                } catch (err: any) { Alert.alert('Erreur', err.message); }
+                finally { setAddingStaff(false); }
+              }}
+              disabled={addingStaff}
+            >
+              {addingStaff ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSaveBtnText}>Ajouter</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowStaffModal(false)}>
+              <Text style={styles.modalCancelBtnText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
         <Ionicons name="log-out-outline" size={20} color="#ef4444" />
         <Text style={styles.logoutText}>Se deconnecter</Text>
@@ -298,4 +381,7 @@ const styles = StyleSheet.create({
   modalSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   modalCancelBtn: { padding: 16, alignItems: 'center' },
   modalCancelBtnText: { color: '#888', fontSize: 15 },
+  roleBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, backgroundColor: '#0f0f1a', alignItems: 'center', borderWidth: 1, borderColor: '#2a2a4a' },
+  roleBtnActive: { backgroundColor: '#4f46e5', borderColor: '#4f46e5' },
+  roleBtnText: { color: '#888', fontWeight: '600', fontSize: 14 },
 });

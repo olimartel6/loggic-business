@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { getClientById, addPoints, searchClients } from '../services/supabase';
+import { getClientById, addPoints, searchClients, supabase } from '../services/supabase';
 
 export default function ScannerScreen({ route }: any) {
   const { business } = route.params;
@@ -18,6 +18,9 @@ export default function ScannerScreen({ route }: any) {
   const [mode, setMode] = useState<'scan' | 'manual' | 'result'>('scan');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchAmount, setBatchAmount] = useState('');
+  const [batchLog, setBatchLog] = useState<string[]>([]);
 
   const ptsPerDollar = business.points_per_dollar || 10;
 
@@ -28,8 +31,15 @@ export default function ScannerScreen({ route }: any) {
     try {
       const c = await getClientById(data);
       if (c && c.business_id === business.id) {
-        setClient(c);
-        setMode('result');
+        if (batchMode && batchAmount) {
+          const pts = Math.round(parseFloat(batchAmount) * ptsPerDollar);
+          await addPoints(business.id, c.id, pts, 'purchase', `Achat de $${batchAmount}`, parseFloat(batchAmount));
+          setBatchLog(prev => [`${c.name}: +${pts} pts`, ...prev]);
+          setTimeout(() => setScanned(false), 1500);
+        } else {
+          setClient(c);
+          setMode('result');
+        }
       } else {
         Alert.alert('Erreur', 'Client non trouve ou mauvais commerce');
         setScanned(false);
@@ -67,8 +77,20 @@ export default function ScannerScreen({ route }: any) {
       const desc = manualPoints ? 'Ajout manuel' : `Achat de $${amount}`;
       const spent = manualPoints ? undefined : parseFloat(amount);
       await addPoints(business.id, client.id, pts, manualPoints ? 'manual' : 'purchase', desc, spent);
-      Alert.alert('Succes', `${pts} points ajoutes a ${client.name}`);
-      resetScanner();
+      Alert.alert('Succes', `${pts} points ajoutes a ${client.name}`, [
+        { text: 'OK', onPress: resetScanner },
+        ...(client.phone ? [{
+          text: 'Envoyer SMS',
+          onPress: async () => {
+            try {
+              await supabase.functions.invoke('send-sms', {
+                body: { phone: client.phone, message: `Vous avez recu ${pts} points! Solde: ${(client.points_balance || 0) + pts} pts. Merci! - ${business.name}` },
+              });
+            } catch {}
+            resetScanner();
+          },
+        }] : []),
+      ]);
     } catch (err: any) {
       Alert.alert('Erreur', err.message);
     } finally {
@@ -176,6 +198,28 @@ export default function ScannerScreen({ route }: any) {
         </TouchableOpacity>
       </View>
 
+      {mode === 'scan' && (
+        <View style={styles.batchBar}>
+          <TouchableOpacity
+            style={[styles.batchToggle, batchMode && styles.batchToggleActive]}
+            onPress={() => { setBatchMode(!batchMode); setBatchLog([]); }}
+          >
+            <Ionicons name="flash" size={16} color={batchMode ? '#fff' : '#888'} />
+            <Text style={[styles.batchToggleText, batchMode && { color: '#fff' }]}>Batch</Text>
+          </TouchableOpacity>
+          {batchMode && (
+            <TextInput
+              style={styles.batchInput}
+              value={batchAmount}
+              onChangeText={setBatchAmount}
+              placeholder="Montant $"
+              placeholderTextColor="#666"
+              keyboardType="decimal-pad"
+            />
+          )}
+        </View>
+      )}
+
       {mode === 'scan' ? (
         <View style={styles.cameraContainer}>
           <CameraView
@@ -188,6 +232,13 @@ export default function ScannerScreen({ route }: any) {
             <Text style={styles.scanText}>Scannez le QR du client</Text>
           </View>
           {loading && <ActivityIndicator size="large" color="#4f46e5" style={styles.scanLoader} />}
+          {batchMode && batchLog.length > 0 && (
+            <View style={styles.batchLogOverlay}>
+              {batchLog.slice(0, 5).map((log, i) => (
+                <Text key={i} style={[styles.batchLogText, i === 0 && { color: '#10b981', fontWeight: '700' }]}>{log}</Text>
+              ))}
+            </View>
+          )}
         </View>
       ) : (
         <View style={styles.searchContainer}>
@@ -267,4 +318,11 @@ const styles = StyleSheet.create({
   addBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   cancelBtn: { padding: 16, alignItems: 'center', marginTop: 8 },
   cancelBtnText: { color: '#888', fontSize: 15 },
+  batchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 8, marginTop: 8 },
+  batchToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1a1a2e', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
+  batchToggleActive: { backgroundColor: '#f59e0b' },
+  batchToggleText: { color: '#888', fontWeight: '600', fontSize: 13 },
+  batchInput: { flex: 1, backgroundColor: '#1a1a2e', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: '#fff', fontSize: 15, borderWidth: 1, borderColor: '#2a2a4a' },
+  batchLogOverlay: { position: 'absolute', bottom: 20, left: 20, right: 20, backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: 12, padding: 12 },
+  batchLogText: { color: '#aaa', fontSize: 13, marginBottom: 2 },
 });

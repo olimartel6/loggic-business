@@ -1,27 +1,33 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption } from '../services/supabase';
+import { LineChart } from 'react-native-chart-kit';
+import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats } from '../services/supabase';
+
+const screenWidth = Dimensions.get('window').width - 72;
 
 export default function DashboardScreen({ route }: any) {
   const { business } = route.params;
   const [analytics, setAnalytics] = useState<any>(null);
   const [redemptions, setRedemptions] = useState<any[]>([]);
+  const [weeklyStats, setWeeklyStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
-      const [stats, pending] = await Promise.all([
+      const [stats, pending, weekly] = await Promise.all([
         getAnalytics(business.id),
         getPendingRedemptions(business.id),
+        getWeeklyStats(business.id),
       ]);
       setAnalytics(stats);
       setRedemptions(pending);
+      setWeeklyStats(weekly);
     } catch (err) {
       console.error(err);
     } finally {
@@ -55,6 +61,17 @@ export default function DashboardScreen({ route }: any) {
     { label: 'Echanges approuves', value: analytics?.approvedRedemptions || 0, icon: 'checkmark-circle', color: '#10b981' },
   ];
 
+  const chartConfig = {
+    backgroundColor: '#1a1a2e',
+    backgroundGradientFrom: '#1a1a2e',
+    backgroundGradientTo: '#1a1a2e',
+    decimalCount: 0,
+    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+    labelColor: () => '#888',
+    propsForDots: { r: '4', strokeWidth: '2', stroke: '#4f46e5' },
+    propsForBackgroundLines: { stroke: '#2a2a4a' },
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -74,6 +91,44 @@ export default function DashboardScreen({ route }: any) {
           </View>
         ))}
       </View>
+
+      {weeklyStats && weeklyStats.labels.length > 0 && (
+        <View style={styles.chartSection}>
+          <Text style={styles.chartTitle}>Points distribues (6 sem.)</Text>
+          <LineChart
+            data={{
+              labels: weeklyStats.labels,
+              datasets: [{ data: weeklyStats.points.map((p: number) => p || 0) }],
+            }}
+            width={screenWidth}
+            height={180}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+            withInnerLines={false}
+            withOuterLines={false}
+          />
+        </View>
+      )}
+
+      {weeklyStats && weeklyStats.labels.length > 0 && (
+        <View style={styles.chartSection}>
+          <Text style={styles.chartTitle}>Nouveaux clients (6 sem.)</Text>
+          <LineChart
+            data={{
+              labels: weeklyStats.labels,
+              datasets: [{ data: weeklyStats.clients.map((c: number) => c || 0), color: () => '#10b981' }],
+            }}
+            width={screenWidth}
+            height={180}
+            chartConfig={{ ...chartConfig, color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})` }}
+            bezier
+            style={styles.chart}
+            withInnerLines={false}
+            withOuterLines={false}
+          />
+        </View>
+      )}
 
       {redemptions.length > 0 && (
         <View style={styles.section}>
@@ -97,6 +152,8 @@ export default function DashboardScreen({ route }: any) {
           ))}
         </View>
       )}
+
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
@@ -108,12 +165,12 @@ const styles = StyleSheet.create({
   businessName: { fontSize: 22, fontWeight: '700', color: '#fff' },
   plan: { fontSize: 12, fontWeight: '700', color: '#4f46e5', backgroundColor: '#4f46e520', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8, marginTop: 8 },
-  card: {
-    backgroundColor: '#1a1a2e', borderRadius: 16, padding: 16,
-    width: '48%', gap: 6,
-  },
+  card: { backgroundColor: '#1a1a2e', borderRadius: 16, padding: 16, width: '48%', gap: 6 },
   cardValue: { fontSize: 24, fontWeight: '800', color: '#fff' },
   cardLabel: { fontSize: 12, color: '#888' },
+  chartSection: { backgroundColor: '#1a1a2e', borderRadius: 16, padding: 16, marginHorizontal: 16, marginTop: 12 },
+  chartTitle: { fontSize: 14, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  chart: { borderRadius: 12, marginLeft: -16 },
   section: { padding: 20, marginTop: 8 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 },
   redemptionCard: {

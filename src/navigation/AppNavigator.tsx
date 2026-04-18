@@ -1,22 +1,41 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import ClientsScreen from '../screens/ClientsScreen';
+import ClientDetailScreen from '../screens/ClientDetailScreen';
 import OffersScreen from '../screens/OffersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
 const tabConfig: Record<string, { icon: string; label: string }> = {
   Dashboard: { icon: 'grid', label: 'Accueil' },
   Scanner: { icon: 'qr-code', label: 'Scanner' },
-  Clients: { icon: 'people', label: 'Clients' },
+  ClientsTab: { icon: 'people', label: 'Clients' },
   Offers: { icon: 'pricetag', label: 'Offres' },
   Settings: { icon: 'settings', label: 'Reglages' },
 };
+
+function ClientsStack({ route }: any) {
+  const { business } = route.params;
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: '#0f0f1a' },
+        headerTintColor: '#fff',
+        headerTitleStyle: { fontWeight: '700' },
+      }}
+    >
+      <Stack.Screen name="ClientsList" component={ClientsScreen} options={{ headerTitle: 'Clients' }} initialParams={{ business }} />
+      <Stack.Screen name="ClientDetail" component={ClientDetailScreen} options={{ headerTitle: 'Detail client' }} initialParams={{ business }} />
+    </Stack.Navigator>
+  );
+}
 
 export default function AppNavigator({ business, onSignOut }: { business: any; onSignOut: () => void }) {
   return (
@@ -24,6 +43,7 @@ export default function AppNavigator({ business, onSignOut }: { business: any; o
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
           const cfg = tabConfig[route.name];
+          if (!cfg) return null;
           const iconName = focused ? cfg.icon : `${cfg.icon}-outline`;
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
@@ -56,9 +76,9 @@ export default function AppNavigator({ business, onSignOut }: { business: any; o
         initialParams={{ business }}
       />
       <Tab.Screen
-        name="Clients"
-        component={ClientsScreen}
-        options={{ tabBarLabel: 'Clients', headerTitle: 'Clients' }}
+        name="ClientsTab"
+        component={ClientsStack}
+        options={{ tabBarLabel: 'Clients', headerShown: false }}
         initialParams={{ business }}
       />
       <Tab.Screen

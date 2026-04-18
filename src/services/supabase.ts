@@ -191,6 +191,93 @@ export async function createOffer(businessId: string, offer: { title: string; de
   if (error) throw error;
 }
 
+// ---- Client Transactions ----
+export async function getClientTransactions(clientId: string) {
+  const { data, error } = await supabase
+    .from('loyalty_transactions')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// ---- Client Updates ----
+export async function updateClient(clientId: string, updates: Record<string, any>) {
+  const { error } = await supabase
+    .from('loyalty_clients')
+    .update(updates)
+    .eq('id', clientId);
+  if (error) throw error;
+}
+
+// ---- Weekly Stats ----
+export async function getWeeklyStats(businessId: string) {
+  const { data: transactions } = await supabase
+    .from('loyalty_transactions')
+    .select('points, created_at, type')
+    .eq('business_id', businessId)
+    .gte('created_at', new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString())
+    .order('created_at');
+
+  const { data: clients } = await supabase
+    .from('loyalty_clients')
+    .select('created_at')
+    .eq('business_id', businessId)
+    .gte('created_at', new Date(Date.now() - 42 * 24 * 60 * 60 * 1000).toISOString());
+
+  const weeks: Record<string, { points: number; clients: number }> = {};
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i * 7);
+    const key = `${d.getMonth() + 1}/${d.getDate()}`;
+    weeks[key] = { points: 0, clients: 0 };
+  }
+
+  const weekKeys = Object.keys(weeks);
+  (transactions || []).forEach(t => {
+    const d = new Date(t.created_at);
+    const weekIdx = Math.floor((Date.now() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const key = weekKeys[Math.max(0, weekKeys.length - 1 - weekIdx)];
+    if (key && weeks[key]) weeks[key].points += Math.max(0, t.points);
+  });
+
+  (clients || []).forEach(c => {
+    const d = new Date(c.created_at);
+    const weekIdx = Math.floor((Date.now() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const key = weekKeys[Math.max(0, weekKeys.length - 1 - weekIdx)];
+    if (key && weeks[key]) weeks[key].clients += 1;
+  });
+
+  return { labels: weekKeys, points: weekKeys.map(k => weeks[k].points), clients: weekKeys.map(k => weeks[k].clients) };
+}
+
+// ---- Staff ----
+export async function getStaffMembers(businessId: string) {
+  const { data, error } = await supabase
+    .from('business_admins')
+    .select('*')
+    .eq('business_id', businessId)
+    .order('created_at');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addStaffMember(businessId: string, email: string, role: string) {
+  // Create auth user first
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password: 'Staff' + Math.random().toString(36).slice(2, 8) + '!',
+  });
+  if (authError) throw authError;
+  if (!authData.user) throw new Error('Failed to create user');
+
+  const { error } = await supabase
+    .from('business_admins')
+    .insert({ user_id: authData.user.id, business_id: businessId, role });
+  if (error) throw error;
+}
+
 // ---- Business Settings ----
 export async function updateBusinessSettings(businessId: string, updates: Record<string, any>) {
   const { error } = await supabase

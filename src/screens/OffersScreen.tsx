@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getOffers, createOffer } from '../services/supabase';
+import { getOffers, createOffer, updateBusinessSettings } from '../services/supabase';
+import { supabase } from '../services/supabase';
 
 export default function OffersScreen({ route }: any) {
   const { business } = route.params;
@@ -59,24 +60,39 @@ export default function OffersScreen({ route }: any) {
     }
   };
 
+  const toggleOffer = async (offerId: string, currentActive: boolean) => {
+    await supabase.from('loyalty_offers').update({ active: !currentActive }).eq('id', offerId);
+    loadOffers();
+  };
+
   const renderOffer = ({ item }: { item: any }) => {
-    const isActive = item.active && (!item.valid_until || new Date(item.valid_until) > new Date());
+    const now = new Date();
+    const validFrom = item.valid_from ? new Date(item.valid_from) : null;
+    const validUntil = item.valid_until ? new Date(item.valid_until) : null;
+    const isScheduled = validFrom && validFrom > now;
+    const isExpired = validUntil && validUntil < now;
+    const isActive = item.active && !isExpired && !isScheduled;
+
     return (
       <View style={styles.offerCard}>
         <View style={styles.offerHeader}>
-          <View style={[styles.statusDot, { backgroundColor: isActive ? '#10b981' : '#666' }]} />
+          <TouchableOpacity onPress={() => toggleOffer(item.id, item.active)}>
+            <View style={[styles.statusDot, { backgroundColor: isActive ? '#10b981' : isScheduled ? '#f59e0b' : '#666' }]} />
+          </TouchableOpacity>
           <Text style={styles.offerTitle}>{item.title}</Text>
+          <TouchableOpacity onPress={() => toggleOffer(item.id, item.active)}>
+            <Ionicons name={item.active ? 'toggle' : 'toggle-outline'} size={28} color={item.active ? '#10b981' : '#666'} />
+          </TouchableOpacity>
         </View>
         {item.description && <Text style={styles.offerDesc}>{item.description}</Text>}
         <View style={styles.offerMeta}>
           <Text style={styles.offerMetaText}>
             {item.claims_count || 0}{item.max_claims ? `/${item.max_claims}` : ''} utilisations
           </Text>
-          {item.valid_until && (
-            <Text style={styles.offerMetaText}>
-              Expire: {new Date(item.valid_until).toLocaleDateString('fr-CA')}
-            </Text>
-          )}
+          {isScheduled && <Text style={[styles.offerMetaText, { color: '#f59e0b' }]}>Debut: {validFrom!.toLocaleDateString('fr-CA')}</Text>}
+          {validUntil && <Text style={[styles.offerMetaText, isExpired ? { color: '#ef4444' } : {}]}>
+            {isExpired ? 'Expire' : 'Expire'}: {validUntil.toLocaleDateString('fr-CA')}
+          </Text>}
         </View>
       </View>
     );
