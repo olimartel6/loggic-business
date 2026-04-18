@@ -127,10 +127,6 @@ export default function SettingsScreen({ route, navigation }: any) {
           <Text style={styles.infoLabel}>Nom</Text>
           <Text style={styles.infoValue}>{business.name}</Text>
         </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Plan</Text>
-          <Text style={[styles.infoValue, { color: '#4f46e5' }]}>{(business.plan || 'free').toUpperCase()}</Text>
-        </View>
         {business.phone && (
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Telephone</Text>
