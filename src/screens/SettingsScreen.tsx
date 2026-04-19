@@ -348,6 +348,10 @@ export default function SettingsScreen({ route, navigation }: any) {
         </View>
       </Modal>
 
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Preferences</Text>
+      </View>
+
       <TouchableOpacity style={styles.auditBtn} onPress={generatePDFReport}>
         <Ionicons name="document-text" size={20} color="#4f46e5" />
         <Text style={styles.auditBtnText}>Rapport PDF mensuel</Text>
