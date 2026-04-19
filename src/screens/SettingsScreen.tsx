@@ -315,6 +315,15 @@ export default function SettingsScreen({ route, navigation }: any) {
         </View>
       </Modal>
 
+      <TouchableOpacity
+        style={styles.auditBtn}
+        onPress={() => navigation.navigate('Audit', { business })}
+      >
+        <Ionicons name="shield-checkmark" size={20} color="#4f46e5" />
+        <Text style={styles.auditBtnText}>Audit employes</Text>
+        <Ionicons name="chevron-forward" size={18} color="#666" />
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
         <Ionicons name="log-out-outline" size={20} color="#ef4444" />
         <Text style={styles.logoutText}>Se deconnecter</Text>
@@ -419,6 +428,8 @@ const styles = StyleSheet.create({
   modalSaveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   modalCancelBtn: { padding: 16, alignItems: 'center' },
   modalCancelBtnText: { color: '#888', fontSize: 15 },
+  auditBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#1a1a2e', borderRadius: 16, padding: 16, marginBottom: 16 },
+  auditBtnText: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '600' },
   rewardImg: { width: 28, height: 28, borderRadius: 6 },
   photoPickerBtn: { marginTop: 4 },
   photoPreview: { width: 80, height: 80, borderRadius: 12 },

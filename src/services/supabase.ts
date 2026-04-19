@@ -81,6 +81,10 @@ export async function searchClients(businessId: string, query: string) {
 
 // ---- Transactions ----
 export async function addPoints(businessId: string, clientId: string, points: number, type: string, description: string, amountSpent?: number) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const staffUserId = session?.user?.id || null;
+  const staffEmail = session?.user?.email || null;
+
   const { error: txError } = await supabase
     .from('loyalty_transactions')
     .insert({
@@ -90,6 +94,8 @@ export async function addPoints(businessId: string, clientId: string, points: nu
       points,
       description,
       amount_spent: amountSpent || null,
+      staff_user_id: staffUserId,
+      staff_email: staffEmail,
     });
   if (txError) throw txError;
 
@@ -276,6 +282,75 @@ export async function addStaffMember(businessId: string, email: string, role: st
     .from('business_admins')
     .insert({ user_id: authData.user.id, business_id: businessId, role });
   if (error) throw error;
+}
+
+// ---- Audit Logs ----
+export async function getStaffAuditLog(businessId: string) {
+  const { data, error } = await supabase
+    .from('loyalty_transactions')
+    .select('staff_email, staff_user_id, points, type, description, created_at, loyalty_clients(name)')
+    .eq('business_id', businessId)
+    .not('staff_user_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getStaffSummary(businessId: string) {
+  const { data, error } = await supabase
+    .from('loyalty_transactions')
+    .select('staff_email, points')
+    .eq('business_id', businessId)
+    .not('staff_user_id', 'is', null)
+    .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+  if (error) throw error;
+
+  const summary: Record<string, { total_points: number; tx_count: number }> = {};
+  (data || []).forEach(t => {
+    const email = t.staff_email || 'unknown';
+    if (!summary[email]) summary[email] = { total_points: 0, tx_count: 0 };
+    summary[email].total_points += t.points;
+    summary[email].tx_count += 1;
+  });
+  return summary;
+}
+
+// ---- Fraud Detection ----
+export async function checkFraudAlerts(businessId: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data: todayTx } = await supabase
+    .from('loyalty_transactions')
+    .select('staff_email, client_id, points, loyalty_clients(name)')
+    .eq('business_id', businessId)
+    .gte('created_at', today.toISOString());
+
+  const alerts: string[] = [];
+  const txList = todayTx || [];
+
+  // Check: same client scanned 3+ times today
+  const clientCounts: Record<string, { count: number; name: string }> = {};
+  txList.forEach(t => {
+    if (!clientCounts[t.client_id]) clientCounts[t.client_id] = { count: 0, name: (t as any).loyalty_clients?.name || 'Unknown' };
+    clientCounts[t.client_id].count += 1;
+  });
+  Object.entries(clientCounts).forEach(([_, v]) => {
+    if (v.count >= 3) alerts.push(`${v.name} scanne ${v.count}x aujourd'hui`);
+  });
+
+  // Check: staff gave > 1000 points today
+  const staffPoints: Record<string, number> = {};
+  txList.forEach(t => {
+    const email = t.staff_email || 'unknown';
+    staffPoints[email] = (staffPoints[email] || 0) + t.points;
+  });
+  Object.entries(staffPoints).forEach(([email, pts]) => {
+    if (pts > 1000) alerts.push(`${email} a donne ${pts} pts aujourd'hui`);
+  });
+
+  return alerts;
 }
 
 // ---- Business Settings ----

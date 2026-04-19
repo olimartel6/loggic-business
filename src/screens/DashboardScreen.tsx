@@ -6,7 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
-import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats } from '../services/supabase';
+import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats, checkFraudAlerts } from '../services/supabase';
 
 const screenWidth = Dimensions.get('window').width - 72;
 
@@ -15,19 +15,22 @@ export default function DashboardScreen({ route }: any) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [redemptions, setRedemptions] = useState<any[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<any>(null);
+  const [fraudAlerts, setFraudAlerts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
-      const [stats, pending, weekly] = await Promise.all([
+      const [stats, pending, weekly, fraud] = await Promise.all([
         getAnalytics(business.id),
         getPendingRedemptions(business.id),
         getWeeklyStats(business.id),
+        checkFraudAlerts(business.id),
       ]);
       setAnalytics(stats);
       setRedemptions(pending);
       setWeeklyStats(weekly);
+      setFraudAlerts(fraud);
     } catch (err) {
       console.error(err);
     } finally {
@@ -81,6 +84,17 @@ export default function DashboardScreen({ route }: any) {
         <Text style={styles.businessName}>{business.name}</Text>
         <Text style={styles.plan}>{(business.plan || 'free').toUpperCase()}</Text>
       </View>
+
+      {fraudAlerts.length > 0 && (
+        <View style={styles.alertBanner}>
+          <Ionicons name="warning" size={18} color="#ef4444" />
+          <View style={{ flex: 1 }}>
+            {fraudAlerts.map((a, i) => (
+              <Text key={i} style={styles.alertBannerText}>{a}</Text>
+            ))}
+          </View>
+        </View>
+      )}
 
       <View style={styles.grid}>
         {stats.map((s, i) => (
@@ -164,6 +178,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   businessName: { fontSize: 22, fontWeight: '700', color: '#fff' },
   plan: { fontSize: 12, fontWeight: '700', color: '#4f46e5', backgroundColor: '#4f46e520', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden' },
+  alertBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#2a1a1a', borderRadius: 12, padding: 14, marginHorizontal: 16, marginTop: 8, borderWidth: 1, borderColor: '#ef444440' },
+  alertBannerText: { color: '#f59e0b', fontSize: 13, marginBottom: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 8, marginTop: 8 },
   card: { backgroundColor: '#1a1a2e', borderRadius: 16, padding: 16, width: '48%', gap: 6 },
   cardValue: { fontSize: 24, fontWeight: '800', color: '#fff' },

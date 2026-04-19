@@ -9,6 +9,7 @@ import ClientsScreen from '../screens/ClientsScreen';
 import ClientDetailScreen from '../screens/ClientDetailScreen';
 import OffersScreen from '../screens/OffersScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AuditScreen from '../screens/AuditScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -18,7 +19,7 @@ const tabConfig: Record<string, { icon: string; label: string }> = {
   Scanner: { icon: 'qr-code', label: 'Scanner' },
   ClientsTab: { icon: 'people', label: 'Clients' },
   Offers: { icon: 'pricetag', label: 'Offres' },
-  Settings: { icon: 'settings', label: 'Reglages' },
+  SettingsTab: { icon: 'settings', label: 'Reglages' },
 };
 
 function ClientsStack({ route }: any) {
@@ -88,11 +89,17 @@ export default function AppNavigator({ business, onSignOut }: { business: any; o
         initialParams={{ business }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{ tabBarLabel: 'Reglages', headerTitle: 'Reglages' }}
+        name="SettingsTab"
+        options={{ tabBarLabel: 'Reglages', headerShown: false }}
         initialParams={{ business, onSignOut }}
-      />
+      >
+        {(props: any) => (
+          <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#0f0f1a' }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '700' } }}>
+            <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerTitle: 'Reglages' }} initialParams={{ business, onSignOut }} />
+            <Stack.Screen name="Audit" component={AuditScreen} options={{ headerTitle: 'Audit employes' }} initialParams={{ business }} />
+          </Stack.Navigator>
+        )}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }
