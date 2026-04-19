@@ -1,17 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator, Dimensions,
+  RefreshControl, ActivityIndicator, Dimensions, Animated, useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats, checkFraudAlerts } from '../services/supabase';
 
-const screenWidth = Dimensions.get('window').width - 72;
-
 export default function DashboardScreen({ route }: any) {
   const { business } = route.params;
+  const { width: windowWidth } = useWindowDimensions();
+  const isTablet = windowWidth >= 768;
+  const chartWidth = windowWidth - (isTablet ? 120 : 72);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [analytics, setAnalytics] = useState<any>(null);
   const [redemptions, setRedemptions] = useState<any[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<any>(null);
@@ -51,6 +53,12 @@ export default function DashboardScreen({ route }: any) {
     loadData();
   };
 
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+    }
+  }, [loading]);
+
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#4f46e5" /></View>;
   }
@@ -80,7 +88,8 @@ export default function DashboardScreen({ route }: any) {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor="#4f46e5" />}
     >
-      <View style={styles.header}>
+      <Animated.View style={{ opacity: fadeAnim }}>
+      <View style={[styles.header, isTablet && { paddingHorizontal: 32 }]}>
         <Text style={styles.businessName}>{business.name}</Text>
         <Text style={styles.plan}>{(business.plan || 'free').toUpperCase()}</Text>
       </View>
@@ -96,9 +105,9 @@ export default function DashboardScreen({ route }: any) {
         </View>
       )}
 
-      <View style={styles.grid}>
+      <View style={[styles.grid, isTablet && { paddingHorizontal: 24 }]}>
         {stats.map((s, i) => (
-          <View key={i} style={styles.card}>
+          <View key={i} style={[styles.card, isTablet && { width: '31%' }]}>
             <Ionicons name={s.icon as any} size={24} color={s.color} />
             <Text style={styles.cardValue}>{s.value}</Text>
             <Text style={styles.cardLabel}>{s.label}</Text>
@@ -114,7 +123,7 @@ export default function DashboardScreen({ route }: any) {
               labels: weeklyStats.labels,
               datasets: [{ data: weeklyStats.points.map((p: number) => p || 0) }],
             }}
-            width={screenWidth}
+            width={chartWidth}
             height={180}
             chartConfig={chartConfig}
             bezier
@@ -133,7 +142,7 @@ export default function DashboardScreen({ route }: any) {
               labels: weeklyStats.labels,
               datasets: [{ data: weeklyStats.clients.map((c: number) => c || 0), color: () => '#10b981' }],
             }}
-            width={screenWidth}
+            width={chartWidth}
             height={180}
             chartConfig={{ ...chartConfig, color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})` }}
             bezier
@@ -168,6 +177,7 @@ export default function DashboardScreen({ route }: any) {
       )}
 
       <View style={{ height: 100 }} />
+      </Animated.View>
     </ScrollView>
   );
 }

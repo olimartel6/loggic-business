@@ -13,7 +13,7 @@
       "backgroundColor": "#1a1a2e"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.logicsupplies.business",
       "infoPlist": {
         "NSCameraUsageDescription": "Scanner les codes QR des clients",
@@ -22,7 +22,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "27"
+      "buildNumber": "28"
     },
     "android": {
       "adaptiveIcon": {
