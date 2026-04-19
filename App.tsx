@@ -4,7 +4,6 @@ import { ActivityIndicator, View, Text, Animated } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { supabase, getAdminBusiness } from './src/services/supabase';
 import LoginScreen from './src/screens/LoginScreen';
@@ -13,10 +12,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from './src/utils/theme';
 import { I18nProvider } from './src/utils/i18n';
 
-SplashScreen.preventAutoHideAsync();
-
 const linking = {
-  prefixes: [Linking.createURL('/'), 'loggicbusiness://'],
+  prefixes: ['loggicbusiness://'],
   config: {
     screens: {
       ClientsTab: {
@@ -36,51 +33,55 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [biometricLocked, setBiometricLocked] = useState(false);
-  const [splashAnim] = useState(new Animated.Value(1));
-  const [splashDone, setSplashDone] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
   const { theme, isDark } = useTheme();
 
   useEffect(() => {
     initApp();
   }, []);
 
-  const initApp = async () => {
-    // Check onboarding
-    const onboardingDone = await SecureStore.getItemAsync('onboarding_done');
-    if (!onboardingDone) {
-      setShowOnboarding(true);
-      setLoading(false);
-      animateSplash();
-      return;
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     }
+  }, [loading, showOnboarding, biometricLocked]);
 
-    // Check biometric
-    const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
-    if (biometricEnabled === 'true') {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (hasHardware) {
-        setBiometricLocked(true);
-        const result = await LocalAuthentication.authenticateAsync({
-          promptMessage: 'Deverrouiller Loggic Business',
-          cancelLabel: 'Annuler',
-        });
-        if (!result.success) {
+  const initApp = async () => {
+    try {
+      // Check onboarding
+      const onboardingDone = await SecureStore.getItemAsync('onboarding_done');
+      if (!onboardingDone) {
+        setShowOnboarding(true);
+        setLoading(false);
+        return;
+      }
+
+      // Check biometric
+      const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
+      if (biometricEnabled === 'true') {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        if (hasHardware) {
           setBiometricLocked(true);
           setLoading(false);
-          animateSplash();
-          return;
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: 'Deverrouiller Loggic Business',
+            cancelLabel: 'Annuler',
+          });
+          if (!result.success) return;
+          setBiometricLocked(false);
+          setLoading(true);
         }
-        setBiometricLocked(false);
       }
+
+      // Load session
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      if (session) await loadBusiness(session.user.id);
+      else setLoading(false);
+    } catch (err) {
+      console.error('Init error:', err);
+      setLoading(false);
     }
-
-    // Load session
-    const { data: { session } } = await supabase.auth.getSession();
-    setSession(session);
-    if (session) await loadBusiness(session.user.id);
-    else setLoading(false);
-
-    animateSplash();
 
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -90,15 +91,6 @@ function AppContent() {
         setBusiness(null);
       }
     });
-  };
-
-  const animateSplash = () => {
-    setTimeout(() => {
-      SplashScreen.hideAsync();
-      Animated.timing(splashAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
-        setSplashDone(true);
-      });
-    }, 800);
   };
 
   const loadBusiness = async (userId: string) => {
@@ -118,30 +110,11 @@ function AppContent() {
     setBusiness(null);
   };
 
-  // Animated splash overlay
-  const splashOverlay = !splashDone ? (
-    <Animated.View
-      style={{
-        ...({ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 } as any),
-        backgroundColor: '#0f0f1a',
-        justifyContent: 'center',
-        alignItems: 'center',
-        opacity: splashAnim,
-      }}
-      pointerEvents="none"
-    >
-      <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 32, fontWeight: '800', color: '#fff' }}>LB</Text>
-      </View>
-    </Animated.View>
-  ) : null;
-
   if (showOnboarding) {
     return (
       <>
         <StatusBar style="light" />
         <OnboardingScreen onComplete={() => { setShowOnboarding(false); initApp(); }} />
-        {splashOverlay}
       </>
     );
   }
@@ -168,15 +141,16 @@ function AppContent() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      {session && business ? (
-        <AppNavigator business={business} onSignOut={handleSignOut} />
-      ) : (
-        <LoginScreen />
-      )}
-      {splashOverlay}
-    </NavigationContainer>
+    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+      <NavigationContainer linking={linking}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        {session && business ? (
+          <AppNavigator business={business} onSignOut={handleSignOut} />
+        ) : (
+          <LoginScreen />
+        )}
+      </NavigationContainer>
+    </Animated.View>
   );
 }
 
