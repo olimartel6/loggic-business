@@ -3,8 +3,12 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View, Text, Animated } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as Linking from 'expo-linking';
+
+let LocalAuthentication: any = null;
+try { LocalAuthentication = require('expo-local-authentication'); } catch {}
+
+let Linking: any = null;
+try { Linking = require('expo-linking'); } catch {}
 import { supabase, getAdminBusiness } from './src/services/supabase';
 import LoginScreen from './src/screens/LoginScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -13,7 +17,7 @@ import { ThemeProvider, useTheme } from './src/utils/theme';
 import { I18nProvider } from './src/utils/i18n';
 
 const linking = {
-  prefixes: ['loggicbusiness://'],
+  prefixes: ['loggicbusiness://', ...(Linking ? [Linking.createURL('/')] : [])],
   config: {
     screens: {
       ClientsTab: {
@@ -57,19 +61,23 @@ function AppContent() {
       }
 
       // Check biometric
-      const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
-      if (biometricEnabled === 'true') {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        if (hasHardware) {
-          setBiometricLocked(true);
-          setLoading(false);
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: 'Deverrouiller Loggic Business',
-            cancelLabel: 'Annuler',
-          });
-          if (!result.success) return;
-          setBiometricLocked(false);
-          setLoading(true);
+      if (LocalAuthentication) {
+        const biometricEnabled = await SecureStore.getItemAsync('biometric_enabled');
+        if (biometricEnabled === 'true') {
+          try {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            if (hasHardware) {
+              setBiometricLocked(true);
+              setLoading(false);
+              const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Deverrouiller Loggic Business',
+                cancelLabel: 'Annuler',
+              });
+              if (!result.success) return;
+              setBiometricLocked(false);
+              setLoading(true);
+            }
+          } catch {}
         }
       }
 
