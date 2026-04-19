@@ -12,40 +12,50 @@ import SettingsScreen from '../screens/SettingsScreen';
 import AuditScreen from '../screens/AuditScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const ClientsStackNav = createNativeStackNavigator();
+const SettingsStackNav = createNativeStackNavigator();
 
-const tabConfig: Record<string, { icon: string; label: string }> = {
-  Dashboard: { icon: 'grid', label: 'Accueil' },
-  Scanner: { icon: 'qr-code', label: 'Scanner' },
-  ClientsTab: { icon: 'people', label: 'Clients' },
-  Offers: { icon: 'pricetag', label: 'Offres' },
-  SettingsTab: { icon: 'settings', label: 'Reglages' },
+const stackScreenOptions = {
+  headerStyle: { backgroundColor: '#0f0f1a' },
+  headerTintColor: '#fff',
+  headerTitleStyle: { fontWeight: '700' as const },
 };
 
 function ClientsStack({ route }: any) {
   const { business } = route.params;
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: '#0f0f1a' },
-        headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700' },
-      }}
-    >
-      <Stack.Screen name="ClientsList" component={ClientsScreen} options={{ headerTitle: 'Clients' }} initialParams={{ business }} />
-      <Stack.Screen name="ClientDetail" component={ClientDetailScreen} options={{ headerTitle: 'Detail client' }} initialParams={{ business }} />
-    </Stack.Navigator>
+    <ClientsStackNav.Navigator screenOptions={stackScreenOptions}>
+      <ClientsStackNav.Screen name="ClientsList" component={ClientsScreen} options={{ headerTitle: 'Clients' }} initialParams={{ business }} />
+      <ClientsStackNav.Screen name="ClientDetail" component={ClientDetailScreen} options={{ headerTitle: 'Detail client' }} initialParams={{ business }} />
+    </ClientsStackNav.Navigator>
   );
 }
+
+function SettingsStack({ route }: any) {
+  const { business, onSignOut } = route.params;
+  return (
+    <SettingsStackNav.Navigator screenOptions={stackScreenOptions}>
+      <SettingsStackNav.Screen name="SettingsMain" component={SettingsScreen} options={{ headerTitle: 'Reglages' }} initialParams={{ business, onSignOut }} />
+      <SettingsStackNav.Screen name="Audit" component={AuditScreen} options={{ headerTitle: 'Audit employes' }} initialParams={{ business }} />
+    </SettingsStackNav.Navigator>
+  );
+}
+
+const tabIcons: Record<string, string> = {
+  Dashboard: 'grid',
+  Scanner: 'qr-code',
+  ClientsTab: 'people',
+  Offers: 'pricetag',
+  SettingsTab: 'settings',
+};
 
 export default function AppNavigator({ business, onSignOut }: { business: any; onSignOut: () => void }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          const cfg = tabConfig[route.name];
-          if (!cfg) return null;
-          const iconName = focused ? cfg.icon : `${cfg.icon}-outline`;
+          const icon = tabIcons[route.name] || 'ellipse';
+          const iconName = focused ? icon : `${icon}-outline`;
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#4f46e5',
@@ -90,16 +100,10 @@ export default function AppNavigator({ business, onSignOut }: { business: any; o
       />
       <Tab.Screen
         name="SettingsTab"
+        component={SettingsStack}
         options={{ tabBarLabel: 'Reglages', headerShown: false }}
         initialParams={{ business, onSignOut }}
-      >
-        {(props: any) => (
-          <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#0f0f1a' }, headerTintColor: '#fff', headerTitleStyle: { fontWeight: '700' } }}>
-            <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerTitle: 'Reglages' }} initialParams={{ business, onSignOut }} />
-            <Stack.Screen name="Audit" component={AuditScreen} options={{ headerTitle: 'Audit employes' }} initialParams={{ business }} />
-          </Stack.Navigator>
-        )}
-      </Tab.Screen>
+      />
     </Tab.Navigator>
   );
 }

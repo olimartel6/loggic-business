@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Animated, useWindowDimensions,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { signIn } from '../services/supabase';
 
@@ -9,17 +9,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -38,7 +27,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <Animated.View style={[styles.inner, isTablet && { maxWidth: 440, alignSelf: 'center', width: '100%' }, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View style={styles.inner}>
         <View style={styles.logoContainer}>
           <View style={styles.logoBox}>
             <Text style={styles.logoText}>LB</Text>
@@ -84,7 +73,7 @@ export default function LoginScreen() {
         </View>
 
         <Text style={styles.footer}>LogicSupplies Inc.</Text>
-      </Animated.View>
+      </View>
     </KeyboardAvoidingView>
   );
 }

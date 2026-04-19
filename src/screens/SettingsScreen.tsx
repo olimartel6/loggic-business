@@ -10,8 +10,6 @@ let ImagePicker: any = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 import { updateBusinessSettings, signOut, getStaffMembers } from '../services/supabase';
 import { supabase } from '../services/supabase';
-import { useTheme } from '../utils/theme';
-import { useI18n } from '../utils/i18n';
 import * as SecureStore from 'expo-secure-store';
 let Print: any = null;
 try { Print = require('expo-print'); } catch {}
@@ -38,24 +36,14 @@ export default function SettingsScreen({ route, navigation }: any) {
   const [staffRole, setStaffRole] = useState('staff');
   const [addingStaff, setAddingStaff] = useState(false);
 
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const { isDark, toggle: toggleTheme } = useTheme();
-  const { lang, setLang } = useI18n();
-
   const tiers = business.tiers || [];
 
   useFocusEffect(useCallback(() => {
     getStaffMembers(business.id).then(setStaff).catch(console.error);
-    SecureStore.getItemAsync('biometric_enabled').then(v => setBiometricEnabled(v === 'true'));
   }, []));
 
-  const toggleBiometric = async () => {
-    const next = !biometricEnabled;
-    setBiometricEnabled(next);
-    await SecureStore.setItemAsync('biometric_enabled', next ? 'true' : 'false');
-  };
-
   const generatePDFReport = async () => {
+    if (!Print || !Sharing) return;
     const html = `
       <html><head><style>
         body { font-family: -apple-system, sans-serif; padding: 40px; color: #333; }
@@ -359,28 +347,6 @@ export default function SettingsScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Preferences</Text>
-        <View style={styles.inputRow}>
-          <Text style={styles.inputLabel}>Mode sombre</Text>
-          <TouchableOpacity onPress={toggleTheme}>
-            <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color={isDark ? '#4f46e5' : '#f59e0b'} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.inputRow}>
-          <Text style={styles.inputLabel}>Langue</Text>
-          <TouchableOpacity onPress={() => setLang(lang === 'fr' ? 'en' : 'fr')}>
-            <Text style={{ color: '#4f46e5', fontWeight: '700', fontSize: 15 }}>{lang === 'fr' ? 'FR' : 'EN'}</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.inputRow}>
-          <Text style={styles.inputLabel}>Face ID / Touch ID</Text>
-          <TouchableOpacity onPress={toggleBiometric}>
-            <Ionicons name={biometricEnabled ? 'lock-closed' : 'lock-open-outline'} size={22} color={biometricEnabled ? '#10b981' : '#888'} />
-          </TouchableOpacity>
-        </View>
-      </View>
 
       <TouchableOpacity style={styles.auditBtn} onPress={generatePDFReport}>
         <Ionicons name="document-text" size={20} color="#4f46e5" />
