@@ -6,14 +6,17 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+let ImagePicker: any = null;
+try { ImagePicker = require('expo-image-picker'); } catch {}
 import { updateBusinessSettings, signOut, getStaffMembers } from '../services/supabase';
 import { supabase } from '../services/supabase';
 import { useTheme } from '../utils/theme';
 import { useI18n } from '../utils/i18n';
 import * as SecureStore from 'expo-secure-store';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+let Print: any = null;
+try { Print = require('expo-print'); } catch {}
+let Sharing: any = null;
+try { Sharing = require('expo-sharing'); } catch {}
 
 export default function SettingsScreen({ route, navigation }: any) {
   const { business, onSignOut } = route.params;

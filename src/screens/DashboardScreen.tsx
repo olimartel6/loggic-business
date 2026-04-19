@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
+let LineChart: any = null;
+try { LineChart = require('react-native-chart-kit').LineChart; } catch {}
 import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats, checkFraudAlerts } from '../services/supabase';
 import { hapticSuccess, hapticError } from '../utils/haptics';
 
@@ -118,7 +119,7 @@ export default function DashboardScreen({ route }: any) {
         ))}
       </View>
 
-      {weeklyStats && weeklyStats.labels.length > 0 && (
+      {LineChart && weeklyStats && weeklyStats.labels.length > 0 && (
         <View style={styles.chartSection}>
           <Text style={styles.chartTitle}>Points distribues (6 sem.)</Text>
           <LineChart
@@ -137,7 +138,7 @@ export default function DashboardScreen({ route }: any) {
         </View>
       )}
 
-      {weeklyStats && weeklyStats.labels.length > 0 && (
+      {LineChart && weeklyStats && weeklyStats.labels.length > 0 && (
         <View style={styles.chartSection}>
           <Text style={styles.chartTitle}>Nouveaux clients (6 sem.)</Text>
           <LineChart

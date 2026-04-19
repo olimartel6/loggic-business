@@ -6,7 +6,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+let ImagePicker: any = null;
+try { ImagePicker = require('expo-image-picker'); } catch {}
 import { getOffers, createOffer, updateBusinessSettings } from '../services/supabase';
 import { supabase } from '../services/supabase';
 
