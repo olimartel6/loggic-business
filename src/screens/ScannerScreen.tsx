@@ -6,6 +6,7 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { getClientById, addPoints, searchClients, supabase } from '../services/supabase';
+import { hapticSuccess, hapticMedium } from '../utils/haptics';
 
 export default function ScannerScreen({ route }: any) {
   const { business } = route.params;
@@ -34,6 +35,7 @@ export default function ScannerScreen({ route }: any) {
         if (batchMode && batchAmount) {
           const pts = Math.round(parseFloat(batchAmount) * ptsPerDollar);
           await addPoints(business.id, c.id, pts, 'purchase', `Achat de $${batchAmount}`, parseFloat(batchAmount));
+          hapticSuccess();
           setBatchLog(prev => [`${c.name}: +${pts} pts`, ...prev]);
           setTimeout(() => setScanned(false), 1500);
         } else {
@@ -77,6 +79,7 @@ export default function ScannerScreen({ route }: any) {
       const desc = manualPoints ? 'Ajout manuel' : `Achat de $${amount}`;
       const spent = manualPoints ? undefined : parseFloat(amount);
       await addPoints(business.id, client.id, pts, manualPoints ? 'manual' : 'purchase', desc, spent);
+      hapticSuccess();
       Alert.alert('Succes', `${pts} points ajoutes a ${client.name}`, [
         { text: 'OK', onPress: resetScanner },
         ...(client.phone ? [{

@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import QRCode from 'react-native-qrcode-svg';
 import { getClientTransactions, updateClient, supabase } from '../services/supabase';
 
 export default function ClientDetailScreen({ route, navigation }: any) {
@@ -127,6 +128,14 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             <Text style={styles.statLabel}>Visites</Text>
           </View>
         </View>
+      </View>
+
+      <View style={[styles.section, { alignItems: 'center' }]}>
+        <Text style={[styles.sectionTitle, { alignSelf: 'flex-start', marginBottom: 12 }]}>QR Code client</Text>
+        <View style={{ backgroundColor: '#fff', padding: 16, borderRadius: 12 }}>
+          <QRCode value={client.id} size={160} />
+        </View>
+        <Text style={{ color: '#666', fontSize: 11, marginTop: 8 }}>A scanner par l'employe</Text>
       </View>
 
       <View style={styles.section}>

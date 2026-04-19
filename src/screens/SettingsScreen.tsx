@@ -9,6 +9,11 @@ import { Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { updateBusinessSettings, signOut, getStaffMembers } from '../services/supabase';
 import { supabase } from '../services/supabase';
+import { useTheme } from '../utils/theme';
+import { useI18n } from '../utils/i18n';
+import * as SecureStore from 'expo-secure-store';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 export default function SettingsScreen({ route, navigation }: any) {
   const { business, onSignOut } = route.params;
@@ -30,11 +35,48 @@ export default function SettingsScreen({ route, navigation }: any) {
   const [staffRole, setStaffRole] = useState('staff');
   const [addingStaff, setAddingStaff] = useState(false);
 
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const { isDark, toggle: toggleTheme } = useTheme();
+  const { lang, setLang } = useI18n();
+
   const tiers = business.tiers || [];
 
   useFocusEffect(useCallback(() => {
     getStaffMembers(business.id).then(setStaff).catch(console.error);
+    SecureStore.getItemAsync('biometric_enabled').then(v => setBiometricEnabled(v === 'true'));
   }, []));
+
+  const toggleBiometric = async () => {
+    const next = !biometricEnabled;
+    setBiometricEnabled(next);
+    await SecureStore.setItemAsync('biometric_enabled', next ? 'true' : 'false');
+  };
+
+  const generatePDFReport = async () => {
+    const html = `
+      <html><head><style>
+        body { font-family: -apple-system, sans-serif; padding: 40px; color: #333; }
+        h1 { color: #4f46e5; } h2 { color: #666; margin-top: 30px; }
+        .stat { display: inline-block; width: 30%; text-align: center; padding: 20px; margin: 5px; background: #f5f5f7; border-radius: 12px; }
+        .stat .value { font-size: 28px; font-weight: 800; color: #1c1c1e; }
+        .stat .label { font-size: 12px; color: #888; }
+      </style></head><body>
+        <h1>Loggic Business - Rapport</h1>
+        <p>${business.name} | ${new Date().toLocaleDateString('fr-CA')}</p>
+        <h2>Statistiques</h2>
+        <div class="stat"><div class="value">${ptsPerDollar}</div><div class="label">pts/dollar</div></div>
+        <div class="stat"><div class="value">${referralBonus}</div><div class="label">bonus parrainage</div></div>
+        <div class="stat"><div class="value">${visitBonus}</div><div class="label">bonus visite</div></div>
+        <h2>Recompenses (${rewards.length})</h2>
+        <ul>${rewards.map(r => `<li>${r.name} - ${r.points_required} pts</li>`).join('')}</ul>
+        <h2>Employes (${staff.length})</h2>
+        <ul>${staff.map(s => `<li>${s.user_id?.substring(0, 8)}... (${s.role})</li>`).join('')}</ul>
+        <p style="margin-top: 40px; color: #aaa; font-size: 11px;">Genere par Loggic Business</p>
+      </body></html>
+    `;
+    const { uri } = await Print.printToFileAsync({ html });
+    await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -314,6 +356,34 @@ export default function SettingsScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Preferences</Text>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputLabel}>Mode sombre</Text>
+          <TouchableOpacity onPress={toggleTheme}>
+            <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color={isDark ? '#4f46e5' : '#f59e0b'} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputLabel}>Langue</Text>
+          <TouchableOpacity onPress={() => setLang(lang === 'fr' ? 'en' : 'fr')}>
+            <Text style={{ color: '#4f46e5', fontWeight: '700', fontSize: 15 }}>{lang === 'fr' ? 'FR' : 'EN'}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputLabel}>Face ID / Touch ID</Text>
+          <TouchableOpacity onPress={toggleBiometric}>
+            <Ionicons name={biometricEnabled ? 'lock-closed' : 'lock-open-outline'} size={22} color={biometricEnabled ? '#10b981' : '#888'} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.auditBtn} onPress={generatePDFReport}>
+        <Ionicons name="document-text" size={20} color="#4f46e5" />
+        <Text style={styles.auditBtnText}>Rapport PDF mensuel</Text>
+        <Ionicons name="share-outline" size={18} color="#666" />
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.auditBtn}

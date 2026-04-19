@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { getAnalytics, getPendingRedemptions, approveRedemption, rejectRedemption, getWeeklyStats, checkFraudAlerts } from '../services/supabase';
+import { hapticSuccess, hapticError } from '../utils/haptics';
 
 export default function DashboardScreen({ route }: any) {
   const { business } = route.params;
@@ -45,11 +46,13 @@ export default function DashboardScreen({ route }: any) {
 
   const handleApprove = async (id: string) => {
     await approveRedemption(id);
+    hapticSuccess();
     loadData();
   };
 
   const handleReject = async (id: string) => {
     await rejectRedemption(id);
+    hapticError();
     loadData();
   };
 

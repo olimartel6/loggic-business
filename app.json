@@ -22,7 +22,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "28"
+      "buildNumber": "29"
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +42,14 @@
           "cameraPermission": "Scanner les codes QR des clients"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Deverrouiller Loggic Business avec Face ID"
+        }
+      ]
     ],
     "extra": {
       "eas": {
