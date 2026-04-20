@@ -134,8 +134,19 @@ function AppContent() {
     );
   }
 
+  const linking = {
+    prefixes: ['loggicbusiness://'],
+    config: {
+      screens: {
+        ClientsTab: { screens: { ClientDetail: 'client/:clientId' } },
+        Dashboard: 'dashboard',
+        Scanner: 'scanner',
+      },
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <StatusBar style="light" />
       {session && business ? (
         <AppNavigator business={business} onSignOut={handleSignOut} />
