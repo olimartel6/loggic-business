@@ -36,10 +36,13 @@ export default function SettingsScreen({ route, navigation }: any) {
   const [staffRole, setStaffRole] = useState('staff');
   const [addingStaff, setAddingStaff] = useState(false);
 
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
   const tiers = business.tiers || [];
 
   useFocusEffect(useCallback(() => {
     getStaffMembers(business.id).then(setStaff).catch(console.error);
+    SecureStore.getItemAsync('biometric_enabled').then(v => setBiometricEnabled(v === 'true'));
   }, []));
 
   const generatePDFReport = async () => {
@@ -350,6 +353,16 @@ export default function SettingsScreen({ route, navigation }: any) {
 
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Preferences</Text>
+        <View style={styles.inputRow}>
+          <Text style={styles.inputLabel}>Face ID / Touch ID</Text>
+          <TouchableOpacity onPress={async () => {
+            const next = !biometricEnabled;
+            setBiometricEnabled(next);
+            await SecureStore.setItemAsync('biometric_enabled', next ? 'true' : 'false');
+          }}>
+            <Ionicons name={biometricEnabled ? 'lock-closed' : 'lock-open-outline'} size={22} color={biometricEnabled ? '#10b981' : '#888'} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <TouchableOpacity style={styles.auditBtn} onPress={generatePDFReport}>
