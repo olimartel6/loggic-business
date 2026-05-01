@@ -23,7 +23,7 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "buildNumber": "40"
+      "buildNumber": "41"
     },
     "android": {
       "adaptiveIcon": {
