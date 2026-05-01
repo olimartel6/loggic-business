@@ -38,6 +38,11 @@ export default function SettingsScreen({ route, navigation }: any) {
 
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
   const tiers = business.tiers || [];
 
   useFocusEffect(useCallback(() => {
@@ -160,6 +165,30 @@ export default function SettingsScreen({ route, navigation }: any) {
         },
       },
     ]);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      Alert.alert('Erreur', 'Mot de passe trop court (min 6 caracteres).');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas.');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      Alert.alert('Succes', 'Mot de passe mis a jour.');
+      setShowPasswordModal(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message || 'Impossible de mettre a jour le mot de passe.');
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -379,6 +408,50 @@ export default function SettingsScreen({ route, navigation }: any) {
         <Text style={styles.auditBtnText}>Audit employes</Text>
         <Ionicons name="chevron-forward" size={18} color="#666" />
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.auditBtn} onPress={() => setShowPasswordModal(true)}>
+        <Ionicons name="key-outline" size={20} color="#4f46e5" />
+        <Text style={styles.auditBtnText}>Changer mon mot de passe</Text>
+        <Ionicons name="chevron-forward" size={18} color="#666" />
+      </TouchableOpacity>
+
+      <Modal visible={showPasswordModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Changer mot de passe</Text>
+            <Text style={styles.label}>Nouveau mot de passe</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Min. 6 caracteres"
+              placeholderTextColor="#666"
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <Text style={styles.label}>Confirmer</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirmer"
+              placeholderTextColor="#666"
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, savingPassword && { opacity: 0.6 }]}
+              onPress={handleChangePassword}
+              disabled={savingPassword}
+            >
+              {savingPassword ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalSaveBtnText}>Mettre a jour</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowPasswordModal(false); setNewPassword(''); setConfirmPassword(''); }}>
+              <Text style={styles.modalCancelBtnText}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
         <Ionicons name="log-out-outline" size={20} color="#ef4444" />
